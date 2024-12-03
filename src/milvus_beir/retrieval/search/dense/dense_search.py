@@ -1,4 +1,5 @@
 from milvus_beir.retrieval.search.milvus import MilvusBaseSearch
+import torch
 import logging
 from typing import Dict, List
 from tqdm.autonotebook import tqdm
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 from abc import ABC, abstractmethod
 from typing import Dict
-
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 class MilvusDenseSearch(MilvusBaseSearch):
     def __init__(self,
@@ -25,7 +26,7 @@ class MilvusDenseSearch(MilvusBaseSearch):
                  nq: int = 100, nb: int = 1000,
                  initialize: bool = True,
                  clean_up: bool = True,
-                 model: BaseEmbeddingFunction = SentenceTransformerEmbeddingFunction(),
+                 model: BaseEmbeddingFunction = SentenceTransformerEmbeddingFunction(device=device),
                  vector_field: str = "dense_embedding",
                  metric_type: str = "COSINE",
                  search_params: Dict = None
@@ -111,6 +112,6 @@ class MilvusDenseSearch(MilvusBaseSearch):
         for i in range(len(queries)):
             data = {}
             for hit in result_list[i]:
-                data[hit.id] = hit.distance
+                data[hit["id"]] = hit["distance"]
             result_dict[query_ids[i]] = data
         return result_dict
