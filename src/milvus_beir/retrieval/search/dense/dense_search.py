@@ -20,7 +20,7 @@ from typing import Dict
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"Using device: {device}")
+logger.info(f"Using device: {device}")
 
 class MilvusDenseSearch(MilvusBaseSearch):
     def __init__(self,
@@ -38,7 +38,6 @@ class MilvusDenseSearch(MilvusBaseSearch):
         self.vector_field = vector_field
         self.metric_type = metric_type
         self.search_params = search_params
-        logger.info(f"Using Dense Model: {self.model.model_name}")
         super().__init__(milvus_client=milvus_client, collection_name=collection_name, nq=nq, nb=nb,
                          initialize=initialize, clean_up=clean_up)
 
