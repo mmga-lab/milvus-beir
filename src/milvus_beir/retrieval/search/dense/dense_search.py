@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 from abc import ABC, abstractmethod
 from typing import Dict
-device = "cuda" if torch.cuda.is_available() else "cpu"
 
 class MilvusDenseSearch(MilvusBaseSearch):
     def __init__(self,
@@ -26,7 +25,7 @@ class MilvusDenseSearch(MilvusBaseSearch):
                  nq: int = 100, nb: int = 1000,
                  initialize: bool = True,
                  clean_up: bool = True,
-                 model: BaseEmbeddingFunction = SentenceTransformerEmbeddingFunction(device=device),
+                 model: BaseEmbeddingFunction = SentenceTransformerEmbeddingFunction(device="cpu"),
                  vector_field: str = "dense_embedding",
                  metric_type: str = "COSINE",
                  search_params: Dict = None
