@@ -24,3 +24,7 @@ model = MilvusDenseSearch(milvus_client, collection_name="milvus_beir_demo", nq=
 retriever = EvaluateRetrieval(model)
 results = retriever.retrieve(corpus, queries)
 ndcg, _map, recall, precision = retriever.evaluate(qrels, results, retriever.k_values)
+print("NDCG:", ndcg)
+print("MAP:", _map)
+print("Recall:", recall)
+print("Precision:", precision)
