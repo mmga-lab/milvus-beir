@@ -46,7 +46,7 @@ class MilvusSparseSearch(MilvusBaseSearch):
             self.milvus_client.drop_collection(self.collection_name)
         schema = self.milvus_client.create_schema()
         schema.add_field("id", DataType.VARCHAR, max_length=1000, is_primary=True)
-        schema.add_field(self.vector_field, DataType.FLOAT_VECTOR, dim=self.model.dim)
+        schema.add_field(self.vector_field, DataType.SPARSE_FLOAT_VECTOR)
         self.milvus_client.create_collection(
             collection_name=self.collection_name,
             schema=schema
