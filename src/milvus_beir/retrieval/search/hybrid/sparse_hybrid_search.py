@@ -22,7 +22,7 @@ from typing import Dict, Optional, Any
 device = "cuda" if torch.cuda.is_available() else "cpu"
 logger.info(f"Using device: {device}")
 
-class MilvusBM25DenseHybridSearch(MilvusBaseSearch):
+class MilvusSparseDenseHybridSearch(MilvusBaseSearch):
     def __init__(self,
                  milvus_client: MilvusClient,
                  collection_name: str,
