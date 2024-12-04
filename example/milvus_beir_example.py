@@ -19,7 +19,7 @@ corpus, queries, qrels = GenericDataLoader(data_folder=data_path).load(split="te
 print("Corpus:", len(corpus))
 print("Queries:", len(queries))
 
-milvus_client = MilvusClient(uri="http://127.0.0.1:19530")
+milvus_client = MilvusClient(uri="http://10.104.20.192:19530")
 model = MilvusDenseSearch(milvus_client, collection_name="milvus_beir_demo", nq=100, nb=1000)
 retriever = EvaluateRetrieval(model)
 dense_results = retriever.retrieve(corpus, queries)
@@ -38,16 +38,22 @@ print("MAP:", _map)
 print("Recall:", recall)
 print("Precision:", precision)
 
-model = MilvusBM25DenseHybridSearch(milvus_client, collection_name="milvus_beir_demo", nq=100, nb=1000)
+model = MilvusBM25DenseHybridSearch(
+    milvus_client, collection_name="milvus_beir_demo", nq=100, nb=1000
+)
 retriever = EvaluateRetrieval(model)
 bm25_dense_hybrid_results = retriever.retrieve(corpus, queries)
-ndcg, _map, recall, precision = retriever.evaluate(qrels, bm25_dense_hybrid_results, retriever.k_values)
+ndcg, _map, recall, precision = retriever.evaluate(
+    qrels, bm25_dense_hybrid_results, retriever.k_values
+)
 print("NDCG:", ndcg)
 print("MAP:", _map)
 print("Recall:", recall)
 print("Precision:", precision)
 
-model = MilvusSparseDenseHybridSearch(milvus_client, collection_name="milvus_beir_demo", nq=100, nb=1000)
+model = MilvusSparseDenseHybridSearch(
+    milvus_client, collection_name="milvus_beir_demo", nq=100, nb=1000
+)
 retriever = EvaluateRetrieval(model)
 sparse_dense_results = retriever.retrieve(corpus, queries)
 ndcg, _map, recall, precision = retriever.evaluate(qrels, sparse_dense_results, retriever.k_values)
@@ -76,16 +82,23 @@ print("Precision:", precision)
 
 
 qrels = Qrels(qrels)
-run_dense = Run(dense_results,name="dense")
-run_sparse = Run(sparse_results,name="sparse")
+run_dense = Run(dense_results, name="dense")
+run_sparse = Run(sparse_results, name="sparse")
 run_bm25 = Run(bm25_results, name="bm25")
-run_multi_match = Run(multi_match_results,name="multi_match")
-run_bm25_dense_hybrid = Run(bm25_dense_hybrid_results,name="bm25_dense_hybrid")
-run_sparse_dense = Run(sparse_dense_results,name="sparse_dense")
+run_multi_match = Run(multi_match_results, name="multi_match")
+run_bm25_dense_hybrid = Run(bm25_dense_hybrid_results, name="bm25_dense_hybrid")
+run_sparse_dense = Run(sparse_dense_results, name="sparse_dense")
 
 report = compare(
     qrels=qrels,
-    runs=[run_dense, run_sparse, run_bm25, run_multi_match, run_bm25_dense_hybrid, run_sparse_dense],
+    runs=[
+        run_dense,
+        run_sparse,
+        run_bm25,
+        run_multi_match,
+        run_bm25_dense_hybrid,
+        run_sparse_dense,
+    ],
     metrics=["ndcg@10", "map@10", "recall@10", "precision@10"],
 )
 print(report)

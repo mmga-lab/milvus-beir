@@ -31,10 +31,9 @@ jobs:
         sleep 60  # Wait for Milvus to start
         docker compose ps -a
 
-    - name: Run example
+    - name: Run Test
       run: |
-        cd example
-        pdm run python milvus_beir_example.py
+         pdm run pytest -v tests
 
     - name: Stop Milvus
       if: always()
