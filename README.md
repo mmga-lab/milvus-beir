@@ -8,11 +8,11 @@ A Python library that integrates Milvus vector database with BEIR (Benchmarking 
   - Dense Vector Search
   - Sparse Vector Search
   - BM25 Search
-  - Hybrid Search (BM25 + Dense)
+  - Hybrid Search (BM25 + Dense， Sparse + Dense)
   - Multi-Match Search
 - Seamless integration with BEIR datasets and evaluation metrics
 - Easy-to-use API for retrieval and evaluation
-- Compatible with Milvus 2.x
+- Compatible with Milvus 2.5.x
 
 ## Installation
 
@@ -72,6 +72,11 @@ Traditional lexical search using BM25 algorithm.
 from milvus_beir.retrieval.search.lexical.bm25_search import MilvusBM25Search
 ```
 
+### Multi-Match Search
+Implements a multi-match search strategy similar to Elasticsearch's multi-match with best_fields type.
+```python
+from milvus_beir.retrieval.search.multi_match.multi_match_search import MilvusMultiMatchSearch
+```
 ### Hybrid Search
 Combines different search strategies for better results.
 ```python
