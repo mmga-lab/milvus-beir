@@ -1,8 +1,10 @@
-from milvus_beir.retrieval.search.milvus import MilvusBaseSearch
 import logging
-from typing import Dict
+from typing import Dict, Optional
+
+from pymilvus import DataType, Function, FunctionType, MilvusClient
 from tqdm.autonotebook import tqdm
-from pymilvus import MilvusClient, DataType, FunctionType, Function
+
+from milvus_beir.retrieval.search.milvus import MilvusBaseSearch
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +19,9 @@ class MilvusMultiMatchSearch(MilvusBaseSearch):
         initialize: bool = True,
         clean_up: bool = True,
         analyzer: str = "english",
-        bm25_input_output_mapping: Dict[str, str] = None,
+        bm25_input_output_mapping: Optional[Dict[str, str]] = None,
         metric_type: str = "BM25",
-        search_params: Dict = None,
+        search_params: Optional[Dict] = None,
         tie_breaker: float = 0.5,
         sleep_time: int = 5,
     ):
@@ -120,49 +122,45 @@ class MilvusMultiMatchSearch(MilvusBaseSearch):
         self.index_completed = True
         logger.info("Indexing Completed!")
 
-    def search(
+    def _search_single_field(
         self,
-        corpus: Dict[str, Dict[str, str]],
-        queries: Dict[str, str],
+        query_texts: list,
+        query_ids: list,
+        bm25_output_field: str,
         top_k: int,
-        *args,
-        **kwargs,
     ) -> Dict[str, Dict[str, float]]:
-        if self.initialize:
-            self._initialize_collection()
-
-        if not self.index_completed:
-            self._index(corpus)
-
-        query_ids = list(queries.keys())
-        query_texts = [queries[qid] for qid in query_ids]
-
+        """Execute search for a single BM25 field."""
         batch_size = self.nq
-        total_rows = len(queries)
-        multi_result = []
-        for bm25_output_field in self.bm25_input_output_mapping.values():
-            result_list = []
-            for start in tqdm(range(0, total_rows, batch_size)):
-                end = min(start + batch_size, total_rows)
-                result = self.milvus_client.search(
-                    collection_name=self.collection_name,
-                    data=query_texts[start:end],
-                    anns_field=bm25_output_field,
-                    search_params={},
-                    limit=top_k,
-                    output_fields=["id"],
-                )
-                result_list.extend(result)
+        total_rows = len(query_texts)
+        result_list = []
 
-            result_dict = {}
-            for i in range(len(queries)):
-                data = {}
-                for hit in result_list[i]:
-                    data[hit["id"]] = hit["distance"]
-                result_dict[query_ids[i]] = data
-            multi_result.append(result_dict)
+        # Batch processing of queries
+        for start in tqdm(range(0, total_rows, batch_size)):
+            end = min(start + batch_size, total_rows)
+            result = self.milvus_client.search(
+                collection_name=self.collection_name,
+                data=query_texts[start:end],
+                anns_field=bm25_output_field,
+                search_params={},
+                limit=top_k,
+                output_fields=["id"],
+            )
+            result_list.extend(result)
 
-        # Combine results from multiple BM25 fields
+        # Convert results to dictionary format
+        result_dict = {}
+        for i, query_id in enumerate(query_ids):
+            data = {hit["id"]: hit["distance"] for hit in result_list[i]}
+            result_dict[query_id] = data
+
+        return result_dict
+
+    def _combine_field_results(
+        self,
+        multi_result: list,
+        query_ids: list,
+    ) -> Dict[str, Dict[str, list]]:
+        """Combine results from multiple BM25 fields."""
         result_dict = {}
         for query_id in query_ids:
             data = {}
@@ -173,14 +171,51 @@ class MilvusMultiMatchSearch(MilvusBaseSearch):
                     else:
                         data[hit_id] = [distance]
             result_dict[query_id] = data
+        return result_dict
 
+    def _apply_fusion(
+        self,
+        combined_results: Dict[str, Dict[str, list]],
+        query_ids: list,
+    ) -> Dict[str, Dict[str, float]]:
+        """Apply score fusion using tie breaker method."""
         fusion_result = {}
         for query_id in query_ids:
             fusion_result[query_id] = {}
-            for hit_id in result_dict[query_id]:
-                scores = sorted(result_dict[query_id][hit_id], reverse=True)
-                fusion_result[query_id][hit_id] = scores[0] + self.tie_breaker * sum(
-                    scores[1:]
-                )
-
+            for hit_id, scores in combined_results[query_id].items():
+                scores = sorted(scores, reverse=True)
+                fusion_result[query_id][hit_id] = scores[0] + self.tie_breaker * sum(scores[1:])
         return fusion_result
+
+    def search(
+        self,
+        corpus: Dict[str, Dict[str, str]],
+        queries: Dict[str, str],
+        top_k: int,
+        *args,
+        **kwargs,
+    ) -> Dict[str, Dict[str, float]]:
+        """Search across multiple BM25 fields and combine results."""
+        if self.initialize:
+            self._initialize_collection()
+
+        if not self.index_completed:
+            self._index(corpus)
+
+        # Prepare query data
+        query_ids = list(queries.keys())
+        query_texts = [queries[qid] for qid in query_ids]
+
+        # Search each field
+        multi_result = []
+        for bm25_output_field in self.bm25_input_output_mapping.values():
+            field_result = self._search_single_field(
+                query_texts, query_ids, bm25_output_field, top_k
+            )
+            multi_result.append(field_result)
+
+        # Combine results from all fields
+        combined_results = self._combine_field_results(multi_result, query_ids)
+
+        # Apply score fusion
+        return self._apply_fusion(combined_results, query_ids)

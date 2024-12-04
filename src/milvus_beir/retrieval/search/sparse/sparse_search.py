@@ -1,17 +1,21 @@
-from milvus_beir.retrieval.search.milvus import MilvusBaseSearch
-import torch
 import logging
 from typing import Dict
-from tqdm.autonotebook import tqdm
-from pymilvus import MilvusClient, DataType
-from milvus_model.sparse import SpladeEmbeddingFunction
+
+import torch
 from milvus_model.base import BaseEmbeddingFunction
+from milvus_model.sparse import SpladeEmbeddingFunction
+from pymilvus import DataType, MilvusClient
+from tqdm.autonotebook import tqdm
+
+from milvus_beir.retrieval.search.milvus import MilvusBaseSearch
 
 logger = logging.getLogger(__name__)
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 logger.info(f"Using device: {device}")
+def get_default_sparse_model() -> BaseEmbeddingFunction:
+    return SpladeEmbeddingFunction(device=device)
 
 
 class MilvusSparseSearch(MilvusBaseSearch):
@@ -23,12 +27,12 @@ class MilvusSparseSearch(MilvusBaseSearch):
         nb: int = 1000,
         initialize: bool = True,
         clean_up: bool = True,
-        model: BaseEmbeddingFunction = SpladeEmbeddingFunction(device=device),
+        model: BaseEmbeddingFunction = None,
         vector_field: str = "sparse_embedding",
         metric_type: str = "IP",
-        search_params: Dict = None,
+        search_params: Optional[Dict] = None,
     ):
-        self.model = model
+        self.model = model if model is not None else get_default_sparse_model()
         self.vector_field = vector_field
         self.metric_type = metric_type
         self.search_params = search_params

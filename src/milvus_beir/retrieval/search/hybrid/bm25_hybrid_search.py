@@ -1,26 +1,33 @@
-from milvus_beir.retrieval.search.milvus import MilvusBaseSearch
-import torch
 import logging
-from typing import Dict
-from tqdm.autonotebook import tqdm
+from typing import Any, Dict, Optional
+
+import torch
+from milvus_model.base import BaseEmbeddingFunction
+from milvus_model.dense import SentenceTransformerEmbeddingFunction
 from pymilvus import (
-    MilvusClient,
-    DataType,
-    FunctionType,
-    Function,
     AnnSearchRequest,
+    DataType,
+    Function,
+    FunctionType,
+    MilvusClient,
     RRFRanker,
 )
-from milvus_model.dense import SentenceTransformerEmbeddingFunction
-from milvus_model.base import BaseEmbeddingFunction
+from tqdm.autonotebook import tqdm
+
+from milvus_beir.retrieval.search.milvus import MilvusBaseSearch
 
 logger = logging.getLogger(__name__)
 
-from typing import Any
-
-
 device = "cuda" if torch.cuda.is_available() else "cpu"
 logger.info(f"Using device: {device}")
+
+
+def get_default_model() -> BaseEmbeddingFunction:
+    return SentenceTransformerEmbeddingFunction(device=device)
+
+
+def get_default_ranker():
+    return RRFRanker()
 
 
 class MilvusBM25DenseHybridSearch(MilvusBaseSearch):
@@ -32,18 +39,16 @@ class MilvusBM25DenseHybridSearch(MilvusBaseSearch):
         nb: int = 1000,
         initialize: bool = True,
         clean_up: bool = True,
-        model: BaseEmbeddingFunction = SentenceTransformerEmbeddingFunction(
-            device=device
-        ),
+        model: BaseEmbeddingFunction = None,
         dense_vector_field: str = "dense_embedding",
         bm25_output_field: str = "sparse_embedding",
         dense_metric_type: str = "COSINE",
         bm25_metric_type: str = "BM25",
-        dense_search_params: Dict = None,
-        bm25_search_params: Dict = None,
-        ranker: Any = RRFRanker(),
+        dense_search_params: Optional[Dict] = None,
+        bm25_search_params: Optional[Dict] = None,
+        ranker: Any = None,
     ):
-        self.model = model
+        self.model = model if model is not None else get_default_model()
         self.dense_vector_field = dense_vector_field
         self.bm25_output_field = bm25_output_field
         self.dense_metric_type = dense_metric_type
@@ -54,7 +59,7 @@ class MilvusBM25DenseHybridSearch(MilvusBaseSearch):
         self.bm25_search_params = (
             bm25_search_params if bm25_search_params is not None else {}
         )
-        self.ranker = ranker
+        self.ranker = ranker if ranker is not None else get_default_ranker()
 
         super().__init__(
             milvus_client=milvus_client,

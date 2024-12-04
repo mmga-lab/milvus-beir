@@ -1,8 +1,10 @@
-from milvus_beir.retrieval.search.milvus import MilvusBaseSearch
 import logging
-from typing import Dict
+from typing import Dict, Optional
+
+from pymilvus import DataType, Function, FunctionType, MilvusClient
 from tqdm.autonotebook import tqdm
-from pymilvus import MilvusClient, DataType, FunctionType, Function
+
+from milvus_beir.retrieval.search.milvus import MilvusBaseSearch
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +22,7 @@ class MilvusBM25Search(MilvusBaseSearch):
         bm25_input_field: str = "text",
         bm25_output_field: str = "bm25_sparse",
         metric_type: str = "BM25",
-        search_params: Dict = None,
+        search_params: Optional[Dict] = None,
         sleep_time: int = 5,
     ):
         self.analyzer = analyzer

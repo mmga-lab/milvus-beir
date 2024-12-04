@@ -1,17 +1,23 @@
-from milvus_beir.retrieval.search.milvus import MilvusBaseSearch
-import torch
 import logging
-from typing import Dict
-from tqdm.autonotebook import tqdm
-from pymilvus import MilvusClient, DataType
-from milvus_model.dense import SentenceTransformerEmbeddingFunction
+from typing import Dict, Optional
+
+import torch
 from milvus_model.base import BaseEmbeddingFunction
+from milvus_model.dense import SentenceTransformerEmbeddingFunction
+from pymilvus import DataType, MilvusClient
+from tqdm.autonotebook import tqdm
+
+from milvus_beir.retrieval.search.milvus import MilvusBaseSearch
 
 logger = logging.getLogger(__name__)
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 logger.info(f"Using device: {device}")
+
+
+def get_default_model() -> BaseEmbeddingFunction:
+    return SentenceTransformerEmbeddingFunction(device=device)
 
 
 class MilvusDenseSearch(MilvusBaseSearch):
@@ -23,14 +29,12 @@ class MilvusDenseSearch(MilvusBaseSearch):
         nb: int = 1000,
         initialize: bool = True,
         clean_up: bool = True,
-        model: BaseEmbeddingFunction = SentenceTransformerEmbeddingFunction(
-            device=device
-        ),
+        model: BaseEmbeddingFunction = None,
         dense_vector_field: str = "dense_embedding",
         metric_type: str = "COSINE",
-        search_params: Dict = None,
+        search_params: Optional[Dict] = None,
     ):
-        self.model = model
+        self.model = model if model is not None else get_default_model()
         self.dense_vector_field = dense_vector_field
         self.metric_type = metric_type
         self.search_params = search_params

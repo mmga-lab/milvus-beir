@@ -1,6 +1,7 @@
 import logging
-from pymilvus import MilvusClient
+
 from beir.retrieval.search import BaseSearch
+from pymilvus import MilvusClient
 
 logger = logging.getLogger(__name__)
 

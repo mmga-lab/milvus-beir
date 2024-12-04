@@ -2,21 +2,12 @@ from beir import util
 from beir.datasets.data_loader import GenericDataLoader
 from beir.retrieval.evaluation import EvaluateRetrieval
 from pymilvus import MilvusClient
-from milvus_beir.retrieval.search.dense.dense_search import MilvusDenseSearch
-from milvus_beir.retrieval.search.sparse.sparse_search import MilvusSparseSearch
-from milvus_beir.retrieval.search.lexical.multi_match_search import MilvusMultiMatchSearch
-from milvus_beir.retrieval.search.lexical.bm25_search import MilvusBM25Search
-from milvus_beir.retrieval.search.hybrid.bm25_hybrid_search import MilvusBM25DenseHybridSearch
-from milvus_beir.retrieval.search.hybrid.sparse_hybrid_search import MilvusSparseDenseHybridSearch
-
-from beir import util
-from beir.datasets.data_loader import GenericDataLoader
-from beir.retrieval.evaluation import EvaluateRetrieval
-
 from ranx import Qrels, Run, compare
 
+from milvus_beir.retrieval.search.lexical.bm25_search import MilvusBM25Search
+
 dataset = "scifact"
-url = "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/{}.zip".format(dataset)
+url = f"https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/{dataset}.zip"
 data_path = util.download_and_unzip(url, "../datasets")
 corpus, queries, qrels = GenericDataLoader(data_folder=data_path).load(split="test")
 
