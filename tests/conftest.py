@@ -1,11 +1,13 @@
-import pytest
 import random
 import string
+
+import pytest
 from pymilvus import MilvusClient
 
 # Define the default value
 DEFAULT_MILVUS_URI = "http://localhost:19530"
 DEFAULT_MILVUS_TOKEN = "root:Milvus"
+
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -26,9 +28,11 @@ def pytest_addoption(parser):
 def milvus_uri(request):
     return request.config.getoption("--milvus-uri")
 
+
 @pytest.fixture
 def milvus_token(request):
     return request.config.getoption("--milvus-token")
+
 
 @pytest.fixture
 def collection_name():

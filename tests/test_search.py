@@ -1,9 +1,9 @@
 from milvus_beir.retrieval.search.dense.dense_search import MilvusDenseSearch
-from milvus_beir.retrieval.search.sparse.sparse_search import MilvusSparseSearch
-from milvus_beir.retrieval.search.hybrid.sparse_hybrid_search import MilvusSparseDenseHybridSearch
 from milvus_beir.retrieval.search.hybrid.bm25_hybrid_search import MilvusBM25DenseHybridSearch
+from milvus_beir.retrieval.search.hybrid.sparse_hybrid_search import MilvusSparseDenseHybridSearch
 from milvus_beir.retrieval.search.lexical.bm25_search import MilvusBM25Search
 from milvus_beir.retrieval.search.lexical.multi_match_search import MilvusMultiMatchSearch
+from milvus_beir.retrieval.search.sparse.sparse_search import MilvusSparseSearch
 
 
 def test_dense_search(milvus_client, collection_name, test_corpus, test_queries):
@@ -82,9 +82,7 @@ def test_bm25_search(milvus_client, collection_name, test_corpus, test_queries):
 
 
 def test_multi_match_search(milvus_client, collection_name, test_corpus, test_queries):
-    searcher = MilvusMultiMatchSearch(
-        milvus_client=milvus_client, collection_name=collection_name
-    )
+    searcher = MilvusMultiMatchSearch(milvus_client=milvus_client, collection_name=collection_name)
 
     results = searcher.search(test_corpus, test_queries, top_k=2)
 

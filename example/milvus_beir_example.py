@@ -3,12 +3,13 @@ from beir.datasets.data_loader import GenericDataLoader
 from beir.retrieval.evaluation import EvaluateRetrieval
 from pymilvus import MilvusClient
 from ranx import Qrels, Run, compare
-from milvus_beir.retrieval.search.sparse.sparse_search import MilvusSparseSearch
+
+from milvus_beir.retrieval.search.dense.dense_search import MilvusDenseSearch
 from milvus_beir.retrieval.search.hybrid.bm25_hybrid_search import MilvusBM25DenseHybridSearch
 from milvus_beir.retrieval.search.hybrid.sparse_hybrid_search import MilvusSparseDenseHybridSearch
-from milvus_beir.retrieval.search.dense.dense_search import MilvusDenseSearch
 from milvus_beir.retrieval.search.lexical.bm25_search import MilvusBM25Search
 from milvus_beir.retrieval.search.lexical.multi_match_search import MilvusMultiMatchSearch
+from milvus_beir.retrieval.search.sparse.sparse_search import MilvusSparseSearch
 
 dataset = "nfcorpus"
 url = f"https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/{dataset}.zip"
