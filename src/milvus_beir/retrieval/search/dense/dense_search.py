@@ -52,12 +52,8 @@ class MilvusDenseSearch(MilvusBaseSearch):
             self.milvus_client.drop_collection(self.collection_name)
         schema = self.milvus_client.create_schema()
         schema.add_field("id", DataType.VARCHAR, max_length=1000, is_primary=True)
-        schema.add_field(
-            self.dense_vector_field, DataType.FLOAT_VECTOR, dim=self.model.dim
-        )
-        self.milvus_client.create_collection(
-            collection_name=self.collection_name, schema=schema
-        )
+        schema.add_field(self.dense_vector_field, DataType.FLOAT_VECTOR, dim=self.model.dim)
+        self.milvus_client.create_collection(collection_name=self.collection_name, schema=schema)
 
     def _index(self, corpus):
         logger.info("Sorting Corpus by document length (Longest first)...")
@@ -74,16 +70,11 @@ class MilvusDenseSearch(MilvusBaseSearch):
             texts = [doc.get("title", "") + " " + doc.get("text", "") for doc in batch]
             dense_embeddings = self.model(texts)
             ids = corpus_ids[start:end]
-            data = [
-                {"id": id, "dense_embedding": emb}
-                for id, emb in zip(ids, dense_embeddings)
-            ]
+            data = [{"id": id, "dense_embedding": emb} for id, emb in zip(ids, dense_embeddings)]
             self.milvus_client.insert(collection_name=self.collection_name, data=data)
         self.milvus_client.flush(self.collection_name)
         index_params = self.milvus_client.prepare_index_params()
-        index_params.add_index(
-            field_name=self.dense_vector_field, metric_type=self.metric_type
-        )
+        index_params.add_index(field_name=self.dense_vector_field, metric_type=self.metric_type)
         self.milvus_client.create_index(
             collection_name=self.collection_name, index_params=index_params
         )

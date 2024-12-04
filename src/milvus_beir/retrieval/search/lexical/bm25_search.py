@@ -54,9 +54,7 @@ class MilvusBM25Search(MilvusBaseSearch):
             enable_analyzer=True,
             analyzer_params=analyzer_params,
         )
-        schema.add_field(
-            field_name=self.bm25_output_field, datatype=DataType.SPARSE_FLOAT_VECTOR
-        )
+        schema.add_field(field_name=self.bm25_output_field, datatype=DataType.SPARSE_FLOAT_VECTOR)
         bm25_function = Function(
             name="text_bm25_emb",  # Function name
             input_field_names=[
@@ -69,9 +67,7 @@ class MilvusBM25Search(MilvusBaseSearch):
             function_type=FunctionType.BM25,
         )
         schema.add_function(bm25_function)
-        self.milvus_client.create_collection(
-            collection_name=self.collection_name, schema=schema
-        )
+        self.milvus_client.create_collection(collection_name=self.collection_name, schema=schema)
 
     def _index(self, corpus):
         logger.info("Sorting Corpus by document length (Longest first)...")
@@ -89,15 +85,11 @@ class MilvusBM25Search(MilvusBaseSearch):
             # chunk test with max length of 65536
             texts = [text[:60000] for text in texts]
             ids = corpus_ids[start:end]
-            data = [
-                {"id": id, self.bm25_input_field: text} for id, text in zip(ids, texts)
-            ]
+            data = [{"id": id, self.bm25_input_field: text} for id, text in zip(ids, texts)]
             self.milvus_client.insert(collection_name=self.collection_name, data=data)
         self.milvus_client.flush(self.collection_name)
         index_params = self.milvus_client.prepare_index_params()
-        index_params.add_index(
-            field_name=self.bm25_output_field, metric_type=self.metric_type
-        )
+        index_params.add_index(field_name=self.bm25_output_field, metric_type=self.metric_type)
         self.milvus_client.create_index(
             collection_name=self.collection_name, index_params=index_params
         )

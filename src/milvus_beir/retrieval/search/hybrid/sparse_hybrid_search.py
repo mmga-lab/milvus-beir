@@ -4,11 +4,6 @@ from typing import Any, Dict, Optional
 import torch
 from milvus_model.base import BaseEmbeddingFunction
 from milvus_model.dense import SentenceTransformerEmbeddingFunction
-from milvus_model.models.embedding import (
-    BaseEmbeddingFunction,
-    SentenceTransformerEmbeddingFunction,
-    SpladeEmbeddingFunction,
-)
 from milvus_model.sparse import SpladeEmbeddingFunction
 from pymilvus import (
     AnnSearchRequest,
@@ -63,12 +58,8 @@ class MilvusSparseDenseHybridSearch(MilvusBaseSearch):
         self.sparse_vector_field = sparse_vector_field
         self.dense_metric_type = dense_metric_type
         self.sparse_metric_type = sparse_metric_type
-        self.dense_search_params = (
-            dense_search_params if dense_search_params is not None else {}
-        )
-        self.sparse_search_params = (
-            sparse_search_params if sparse_search_params is not None else {}
-        )
+        self.dense_search_params = dense_search_params if dense_search_params is not None else {}
+        self.sparse_search_params = sparse_search_params if sparse_search_params is not None else {}
         self.ranker = ranker if ranker is not None else get_default_ranker()
 
         super().__init__(
@@ -85,13 +76,9 @@ class MilvusSparseDenseHybridSearch(MilvusBaseSearch):
             self.milvus_client.drop_collection(self.collection_name)
         schema = self.milvus_client.create_schema()
         schema.add_field("id", DataType.VARCHAR, max_length=1000, is_primary=True)
-        schema.add_field(
-            self.dense_vector_field, DataType.FLOAT_VECTOR, dim=self.dense_model.dim
-        )
+        schema.add_field(self.dense_vector_field, DataType.FLOAT_VECTOR, dim=self.dense_model.dim)
         schema.add_field(self.sparse_vector_field, DataType.SPARSE_FLOAT_VECTOR)
-        self.milvus_client.create_collection(
-            collection_name=self.collection_name, schema=schema
-        )
+        self.milvus_client.create_collection(collection_name=self.collection_name, schema=schema)
 
     def _index(self, corpus):
         logger.info("Sorting Corpus by document length (Longest first)...")
@@ -115,9 +102,7 @@ class MilvusSparseDenseHybridSearch(MilvusBaseSearch):
                     self.dense_vector_field: dense_emb,
                     self.sparse_vector_field: sparse_emb,
                 }
-                for id, dense_emb, sparse_emb in zip(
-                    ids, dense_embeddings, sparse_embeddings
-                )
+                for id, dense_emb, sparse_emb in zip(ids, dense_embeddings, sparse_embeddings)
             ]
             self.milvus_client.insert(collection_name=self.collection_name, data=data)
         self.milvus_client.flush(self.collection_name)

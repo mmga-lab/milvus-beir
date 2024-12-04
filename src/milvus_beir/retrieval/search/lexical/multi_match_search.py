@@ -62,9 +62,7 @@ class MilvusMultiMatchSearch(MilvusBaseSearch):
             )
 
         for bm25_output_field in self.bm25_input_output_mapping.values():
-            schema.add_field(
-                field_name=bm25_output_field, datatype=DataType.SPARSE_FLOAT_VECTOR
-            )
+            schema.add_field(field_name=bm25_output_field, datatype=DataType.SPARSE_FLOAT_VECTOR)
 
         for (
             bm25_input_field,
@@ -82,9 +80,7 @@ class MilvusMultiMatchSearch(MilvusBaseSearch):
                 function_type=FunctionType.BM25,
             )
             schema.add_function(bm25_function)
-        self.milvus_client.create_collection(
-            collection_name=self.collection_name, schema=schema
-        )
+        self.milvus_client.create_collection(collection_name=self.collection_name, schema=schema)
 
     def _index(self, corpus):
         logger.info("Sorting Corpus by document length (Longest first)...")
@@ -112,9 +108,7 @@ class MilvusMultiMatchSearch(MilvusBaseSearch):
         self.milvus_client.flush(self.collection_name)
         index_params = self.milvus_client.prepare_index_params()
         for bm25_output_field in self.bm25_input_output_mapping.values():
-            index_params.add_index(
-                field_name=bm25_output_field, metric_type=self.metric_type
-            )
+            index_params.add_index(field_name=bm25_output_field, metric_type=self.metric_type)
             self.milvus_client.create_index(
                 collection_name=self.collection_name, index_params=index_params
             )

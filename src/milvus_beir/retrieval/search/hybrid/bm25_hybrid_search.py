@@ -53,12 +53,8 @@ class MilvusBM25DenseHybridSearch(MilvusBaseSearch):
         self.bm25_output_field = bm25_output_field
         self.dense_metric_type = dense_metric_type
         self.bm25_metric_type = bm25_metric_type
-        self.dense_search_params = (
-            dense_search_params if dense_search_params is not None else {}
-        )
-        self.bm25_search_params = (
-            bm25_search_params if bm25_search_params is not None else {}
-        )
+        self.dense_search_params = dense_search_params if dense_search_params is not None else {}
+        self.bm25_search_params = bm25_search_params if bm25_search_params is not None else {}
         self.ranker = ranker if ranker is not None else get_default_ranker()
 
         super().__init__(
@@ -85,17 +81,11 @@ class MilvusBM25DenseHybridSearch(MilvusBaseSearch):
             enable_analyzer=True,
             analyzer_params=analyzer_params,
         )
-        schema.add_field(
-            field_name=self.bm25_output_field, datatype=DataType.SPARSE_FLOAT_VECTOR
-        )
-        schema.add_field(
-            self.dense_vector_field, DataType.FLOAT_VECTOR, dim=self.model.dim
-        )
+        schema.add_field(field_name=self.bm25_output_field, datatype=DataType.SPARSE_FLOAT_VECTOR)
+        schema.add_field(self.dense_vector_field, DataType.FLOAT_VECTOR, dim=self.model.dim)
         bm25_function = Function(
             name="text_bm25_emb",  # Function name
-            input_field_names=[
-                "text"
-            ],  # Name of the VARCHAR field containing raw text data
+            input_field_names=["text"],  # Name of the VARCHAR field containing raw text data
             output_field_names=[
                 self.bm25_output_field
             ],  # Name of the SPARSE_FLOAT_VECTOR field reserved to store generated embeddings
@@ -103,9 +93,7 @@ class MilvusBM25DenseHybridSearch(MilvusBaseSearch):
             function_type=FunctionType.BM25,
         )
         schema.add_function(bm25_function)
-        self.milvus_client.create_collection(
-            collection_name=self.collection_name, schema=schema
-        )
+        self.milvus_client.create_collection(collection_name=self.collection_name, schema=schema)
 
     def _index(self, corpus):
         logger.info("Sorting Corpus by document length (Longest first)...")
@@ -137,9 +125,7 @@ class MilvusBM25DenseHybridSearch(MilvusBaseSearch):
         self.milvus_client.create_index(
             collection_name=self.collection_name, index_params=index_params
         )
-        index_params.add_index(
-            field_name=self.bm25_output_field, metric_type=self.bm25_metric_type
-        )
+        index_params.add_index(field_name=self.bm25_output_field, metric_type=self.bm25_metric_type)
         self.milvus_client.create_index(
             collection_name=self.collection_name, index_params=index_params
         )

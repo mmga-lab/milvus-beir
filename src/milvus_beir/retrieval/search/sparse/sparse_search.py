@@ -1,5 +1,5 @@
 import logging
-from typing import Dict
+from typing import Dict, Optional
 
 import torch
 from milvus_model.base import BaseEmbeddingFunction
@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 logger.info(f"Using device: {device}")
+
+
 def get_default_sparse_model() -> BaseEmbeddingFunction:
     return SpladeEmbeddingFunction(device=device)
 
@@ -51,9 +53,7 @@ class MilvusSparseSearch(MilvusBaseSearch):
         schema = self.milvus_client.create_schema()
         schema.add_field("id", DataType.VARCHAR, max_length=1000, is_primary=True)
         schema.add_field(self.vector_field, DataType.SPARSE_FLOAT_VECTOR)
-        self.milvus_client.create_collection(
-            collection_name=self.collection_name, schema=schema
-        )
+        self.milvus_client.create_collection(collection_name=self.collection_name, schema=schema)
 
     def _index(self, corpus):
         logger.info("Sorting Corpus by document length (Longest first)...")
@@ -70,15 +70,11 @@ class MilvusSparseSearch(MilvusBaseSearch):
             texts = [doc.get("title", "") + " " + doc.get("text", "") for doc in batch]
             embeddings = self.model(texts)
             ids = corpus_ids[start:end]
-            data = [
-                {"id": id, self.vector_field: emb} for id, emb in zip(ids, embeddings)
-            ]
+            data = [{"id": id, self.vector_field: emb} for id, emb in zip(ids, embeddings)]
             self.milvus_client.insert(collection_name=self.collection_name, data=data)
         self.milvus_client.flush(self.collection_name)
         index_params = self.milvus_client.prepare_index_params()
-        index_params.add_index(
-            field_name=self.vector_field, metric_type=self.metric_type
-        )
+        index_params.add_index(field_name=self.vector_field, metric_type=self.metric_type)
         self.milvus_client.create_index(
             collection_name=self.collection_name, index_params=index_params
         )
