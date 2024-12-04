@@ -1,0 +1,41 @@
+name: Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        curl -sSL https://pdm-project.org/install-pdm.py | python3 -
+        pdm install
+
+    - name: Start Milvus
+      run: |
+        docker compose up -d
+        sleep 60  # Wait for Milvus to start
+        docker compose ps -a
+
+    - name: Run example
+      run: |
+        cd example
+        pdm run python milvus_beir_example.py
+
+    - name: Stop Milvus
+      if: always()
+      run: docker compose down
