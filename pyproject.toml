@@ -10,15 +10,13 @@ authors = [
 ]
 license = {text = "MIT"}
 
-[tool.pdm]
-distribution = true
-
 [dependency-groups]
 test = [
     "pytest>=8.3.4",
 ]
 lint = [
     "ruff>=0.8.1",
+    "pre-commit>=3.5.0",
 ]
 
 [tool.ruff]
@@ -43,3 +41,7 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["milvus_beir"]
+
+[tool.pdm]
+distribution = true
+
