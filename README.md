@@ -95,6 +95,7 @@ cd milvus-beir
 
 # Install dependencies using PDM
 pdm install
+pre-commit install
 ```
 
 ### Running Tests

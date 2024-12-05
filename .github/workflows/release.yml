@@ -1,52 +1,37 @@
-name: Create Release
+name: Release
 
 on:
   push:
     tags:
-      - 'v*' # Trigger on version tags
+      - 'v*'
 
 jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
   release:
+    needs: test
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
-
-      - name: Update version in pyproject.toml
-        run: |
-          # Extract version from tag (remove 'v' prefix)
-          VERSION=${GITHUB_REF#refs/tags/v}
-          # Update version in pyproject.toml
-          sed -i "s/version = \".*\"/version = \"$VERSION\"/" pyproject.toml
-
-      - name: Commit version update
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git commit -am "Bump version to ${GITHUB_REF#refs/tags/}"
-          git push
-
-      - name: Get tag message
-        id: tag
-        run: |
-          git fetch --tags
-          echo "message=$(git tag -l --format='%(contents)' ${{ github.ref_name }})" >> $GITHUB_OUTPUT
-          echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          name: Release ${{ steps.tag.outputs.version }}
-          body: ${{ steps.tag.outputs.message }}
-          draft: false
-          prerelease: false
-          token: ${{ secrets.GITHUB_TOKEN }}
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        curl -sSL https://pdm-project.org/install-pdm.py | python3 -
+        pdm install
+    
+    - name: Build package
+      run: pdm build
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/*
+        generate_release_notes: true
