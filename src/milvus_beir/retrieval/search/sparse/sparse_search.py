@@ -65,7 +65,7 @@ class MilvusSparseSearch(MilvusBaseSearch):
             texts = [doc.get("title", "") + " " + doc.get("text", "") for doc in batch]
             embeddings = self.model(texts)
             ids = corpus_ids[start:end]
-            data = [{"id": id, self.vector_field: emb} for id, emb in zip(ids, embeddings)]
+            data = [{"id": id, self.vector_field: [emb]} for id, emb in zip(ids, embeddings)]
             self.milvus_client.insert(collection_name=self.collection_name, data=data)
         self.milvus_client.flush(self.collection_name)
         index_params = self.milvus_client.prepare_index_params()

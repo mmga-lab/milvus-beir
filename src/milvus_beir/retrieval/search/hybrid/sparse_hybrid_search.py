@@ -96,7 +96,7 @@ class MilvusSparseDenseHybridSearch(MilvusBaseSearch):
                 {
                     "id": id,
                     self.dense_vector_field: dense_emb,
-                    self.sparse_vector_field: sparse_emb,
+                    self.sparse_vector_field: [sparse_emb],
                 }
                 for id, dense_emb, sparse_emb in zip(ids, dense_embeddings, sparse_embeddings)
             ]
