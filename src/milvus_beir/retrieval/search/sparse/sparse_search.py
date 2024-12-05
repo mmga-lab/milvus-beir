@@ -1,7 +1,6 @@
 import logging
 from typing import Dict, Optional
 
-import torch
 from milvus_model.base import BaseEmbeddingFunction
 from milvus_model.sparse import SpladeEmbeddingFunction
 from pymilvus import DataType, MilvusClient
@@ -12,12 +11,8 @@ from milvus_beir.retrieval.search.milvus import MilvusBaseSearch
 logger = logging.getLogger(__name__)
 
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-logger.info(f"Using device: {device}")
-
-
 def get_default_sparse_model() -> BaseEmbeddingFunction:
-    return SpladeEmbeddingFunction(device=device)
+    return SpladeEmbeddingFunction()
 
 
 class MilvusSparseSearch(MilvusBaseSearch):

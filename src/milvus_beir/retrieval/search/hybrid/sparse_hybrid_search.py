@@ -100,6 +100,7 @@ class MilvusSparseDenseHybridSearch(MilvusBaseSearch):
                 }
                 for id, dense_emb, sparse_emb in zip(ids, dense_embeddings, sparse_embeddings)
             ]
+            print(data)
             self.milvus_client.insert(collection_name=self.collection_name, data=data)
         self.milvus_client.flush(self.collection_name)
         index_params = self.milvus_client.prepare_index_params()

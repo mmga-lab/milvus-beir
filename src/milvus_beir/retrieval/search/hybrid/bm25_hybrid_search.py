@@ -1,7 +1,6 @@
 import logging
 from typing import Any, Dict, Optional
 
-import torch
 from milvus_model.base import BaseEmbeddingFunction
 from milvus_model.dense import SentenceTransformerEmbeddingFunction
 from pymilvus import (
@@ -18,12 +17,9 @@ from milvus_beir.retrieval.search.milvus import MilvusBaseSearch
 
 logger = logging.getLogger(__name__)
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-logger.info(f"Using device: {device}")
-
 
 def get_default_model() -> BaseEmbeddingFunction:
-    return SentenceTransformerEmbeddingFunction(device=device)
+    return SentenceTransformerEmbeddingFunction()
 
 
 def get_default_ranker():
