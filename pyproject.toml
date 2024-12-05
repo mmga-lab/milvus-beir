@@ -3,17 +3,10 @@ name = "milvus_beir"
 dynamic = ["version"]
 description = "A Python library that integrates Milvus vector database with BEIR (Benchmarking IR) for efficient information retrieval and evaluation."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
-    "pymilvus>=2.5.0", 
-    "milvus-model>=0.2.10", 
-    "beir>=2.0.0", 
-    "torch<=2.2.2", 
-    "ranx>=0.3.20", 
-    "onnxruntime<=1.19.0",
-    'numpy>=1.26.4; python_version >= "3.12"',
-    'numpy>=1.23.2,<1.27.0; python_version >= "3.9" and python_version < "3.12"',
-    'numpy>=1.19.5,<1.25.0; python_version >= "3.8" and python_version < "3.9"',
+    "pymilvus>=2.5.0",
+    "milvus-model>=0.2.10",
     ]
 authors = [
     {name = "zhuwenxing", email = "wenxing.zhu@zilliz.com"},
@@ -30,7 +23,6 @@ test = [
 ]
 lint = [
     "ruff>=0.8.1",
-    "pre-commit>=3.5.0",
 ]
 
 [tool.ruff]

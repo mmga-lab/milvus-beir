@@ -22,7 +22,7 @@ pip install milvus-beir
 
 ## Prerequisites
 
-- Python >= 3.8
+- Python >= 3.10
 - Running Milvus instance (2.5.0 or higher)
 
 ## Quick Start
