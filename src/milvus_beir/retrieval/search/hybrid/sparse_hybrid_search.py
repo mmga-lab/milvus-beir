@@ -93,14 +93,9 @@ class MilvusSparseDenseHybridSearch(MilvusBaseSearch):
             sparse_embeddings = self.sparse_model(texts)
             ids = corpus_ids[start:end]
             data = [
-                {
-                    "id": id,
-                    self.dense_vector_field: dense_emb,
-                    self.sparse_vector_field: [sparse_emb],
-                }
-                for id, dense_emb, sparse_emb in zip(ids, dense_embeddings, sparse_embeddings)
+                {"id": ids[i], self.dense_vector_field: dense_embeddings[i], self.sparse_vector_field: sparse_embeddings[[i]]}
+                for i in range(len(ids))
             ]
-            print(data)
             self.milvus_client.insert(collection_name=self.collection_name, data=data)
         self.milvus_client.flush(self.collection_name)
         index_params = self.milvus_client.prepare_index_params()
