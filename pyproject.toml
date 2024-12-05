@@ -9,6 +9,7 @@ dependencies = [
     "numpy<2.0.0",
     "torch<=2.2.2",
     "milvus-model>=0.2.10",
+    "beir>=2.0.0",
 ]
 authors = [
     {name = "zhuwenxing", email = "wenxing.zhu@zilliz.com"},
