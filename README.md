@@ -84,6 +84,43 @@ from milvus_beir.retrieval.search.hybrid.bm25_hybrid_search import MilvusBM25Den
 from milvus_beir.retrieval.search.hybrid.sparse_hybrid_search import MilvusSparseDenseHybridSearch
 ```
 
+## Command Line Interface
+
+The package includes a command-line interface for easy evaluation of different search methods on BEIR datasets:
+
+```bash
+# Basic usage
+milvus-beir --dataset nfcorpus --search-method sparse
+
+# Full options
+milvus-beir \
+    --dataset nfcorpus \
+    --uri "http://localhost:19530" \
+    --search-method sparse \
+    --collection-name "my_collection" \
+    --nq 100 \
+    --nb 1000 \
+    --split test
+```
+
+Available options:
+- `--dataset, -d`: Dataset name to evaluate on (required)
+- `--uri, -u`: Milvus server URI (default: http://localhost:19530)
+- `--token, -t`: Authentication token for Milvus (optional)
+- `--search-method, -m`: Search method to use (required)
+  - Available methods: dense, sparse, sparse_hybrid, bm25_hybrid, multi_match, bm25
+- `--collection-name, -c`: Milvus collection name (optional)
+- `--nq`: Number of queries to process in parallel (default: 100)
+- `--nb`: Number of documents to process in parallel (default: 1000)
+- `--split`: Dataset split to evaluate on (default: test)
+  - Available splits: train, test, dev
+
+The CLI tool will:
+1. Download the specified BEIR dataset
+2. Load the corpus and queries
+3. Perform retrieval using the selected search method
+4. Calculate and display evaluation metrics (NDCG@k, MAP@k, Recall@k, Precision@k)
+
 ## Development
 
 ### Setup Development Environment
