@@ -5,7 +5,7 @@
 groups = ["default", "lint", "test"]
 strategy = []
 lock_version = "4.5.0"
-content_hash = "sha256:e895d84cd1d5026127c9b23b81c8cfb4b356a6dc0cdb5badc45b98cb8459c7f0"
+content_hash = "sha256:b1d5eb410dbd877eeb7ac0f8730c729bd0d1ef95ef601be91cbf967f6049af4a"
 
 [[metadata.targets]]
 requires_python = ">=3.10"
@@ -218,6 +218,18 @@ files = [
     {file = "charset_normalizer-3.4.0-cp313-cp313-win_amd64.whl", hash = "sha256:707b82d19e65c9bd28b81dde95249b07bf9f5b90ebe1ef17d9b57473f8a64b7b"},
     {file = "charset_normalizer-3.4.0-py3-none-any.whl", hash = "sha256:fe9f97feb71aa9896b81973a7bbada8c49501dc73e58a10fcef6663af95e5079"},
     {file = "charset_normalizer-3.4.0.tar.gz", hash = "sha256:223217c3d4f82c3ac5e29032b3f1c2eb0fb591b72161f86d93f5719079dae93e"},
+]
+
+[[package]]
+name = "click"
+version = "8.1.7"
+summary = ""
+dependencies = [
+    "colorama; platform_system == \"Windows\"",
+]
+files = [
+    {file = "click-8.1.7-py3-none-any.whl", hash = "sha256:ae74fb96c20a0277a1d615f1e4d73c8414f5a98db8b799a7931d1582f3390c28"},
+    {file = "click-8.1.7.tar.gz", hash = "sha256:ca9853ad459e787e2192211578cc907e7594e294c7ccc834310722b41b9ca6de"},
 ]
 
 [[package]]

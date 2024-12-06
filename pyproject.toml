@@ -10,11 +10,15 @@ dependencies = [
     "torch<=2.2.2",
     "milvus-model>=0.2.10",
     "beir>=2.0.0",
+    "click>=8.0.0",
 ]
 authors = [
     {name = "zhuwenxing", email = "wenxing.zhu@zilliz.com"},
 ]
 license = {text = "MIT"}
+
+[project.scripts]
+milvus-beir = "milvus_beir.cli.search_cli:evaluate"
 
 [build-system]
 requires = ["pdm-backend"]
