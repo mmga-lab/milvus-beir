@@ -1,4 +1,6 @@
 import logging
+import random
+import time
 from typing import Any, Dict, Optional
 
 from milvus_model.base import BaseEmbeddingFunction
@@ -8,12 +10,12 @@ from pymilvus import (
     DataType,
     Function,
     FunctionType,
-    MilvusClient,
     RRFRanker,
 )
 from tqdm.autonotebook import tqdm
 
 from milvus_beir.retrieval.search.milvus import MilvusBaseSearch
+from milvus_beir.utils import measure_search_qps_decorator
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +31,8 @@ def get_default_ranker():
 class MilvusBM25DenseHybridSearch(MilvusBaseSearch):
     def __init__(
         self,
-        milvus_client: MilvusClient,
+        uri: str,
+        token: str | None,
         collection_name: str,
         nq: int = 100,
         nb: int = 1000,
@@ -43,6 +46,7 @@ class MilvusBM25DenseHybridSearch(MilvusBaseSearch):
         dense_search_params: Optional[Dict] = None,
         bm25_search_params: Optional[Dict] = None,
         ranker: Any = None,
+        sleep_time: int = 5,
     ):
         self.model = model if model is not None else get_default_model()
         self.dense_vector_field = dense_vector_field
@@ -52,9 +56,13 @@ class MilvusBM25DenseHybridSearch(MilvusBaseSearch):
         self.dense_search_params = dense_search_params if dense_search_params is not None else {}
         self.bm25_search_params = bm25_search_params if bm25_search_params is not None else {}
         self.ranker = ranker if ranker is not None else get_default_ranker()
+        self.sleep_time = sleep_time
+        self.query_embeddings = []
+        self.query_texts = []
 
         super().__init__(
-            milvus_client=milvus_client,
+            uri=uri,
+            token=token,
             collection_name=collection_name,
             nq=nq,
             nb=nb,
@@ -130,6 +138,37 @@ class MilvusBM25DenseHybridSearch(MilvusBaseSearch):
         self.index_completed = True
         logger.info("Indexing Completed!")
 
+    def _single_search(self, args):
+        query_text, top_k = args
+        query_embeddings = self.model.encode_queries([query_text])
+        query_texts = [query_text]
+
+        try:
+            dense_rqs = AnnSearchRequest(
+                data=query_embeddings,
+                anns_field="dense_embedding",
+                param=self.dense_search_params,
+                limit=top_k,
+            )
+            bm25_rqs = AnnSearchRequest(
+                data=query_texts,
+                anns_field=self.bm25_output_field,
+                param=self.bm25_search_params,
+                limit=top_k,
+            )
+
+            result = self.milvus_client.hybrid_search(
+                collection_name=self.collection_name,
+                reqs=[dense_rqs, bm25_rqs],
+                ranker=self.ranker,
+                limit=top_k,
+                output_fields=["id"],
+            )
+            return result
+        except Exception as e:
+            logger.error(f"Search error: {e!s}")
+            return None
+
     def search(
         self,
         corpus: Dict[str, Dict[str, str]],
@@ -185,3 +224,56 @@ class MilvusBM25DenseHybridSearch(MilvusBaseSearch):
             result_dict[query_ids[i]] = data
 
         return result_dict
+
+    def measure_search_qps(
+        self, corpus, queries, top_k=1000, concurrency_levels=None, test_duration=60
+    ):
+        if concurrency_levels is None:
+            concurrency_levels = [1, 2, 4, 8, 16, 32]
+
+        @measure_search_qps_decorator(
+            concurrency_levels, test_duration=test_duration, max_threads=None
+        )
+        def _single_search(top_k):
+            """ """
+            random_id = random.randint(0, len(queries) - 1)
+            text = self.query_texts[random_id]
+            embedding = self.query_embeddings[random_id]
+
+            try:
+                client = self._get_thread_client()
+                dense_rqs = AnnSearchRequest(
+                    data=[embedding],
+                    anns_field="dense_embedding",
+                    param=self.dense_search_params,
+                    limit=top_k,
+                )
+                bm25_rqs = AnnSearchRequest(
+                    data=[text],
+                    anns_field=self.bm25_output_field,
+                    param=self.bm25_search_params,
+                    limit=top_k,
+                )
+
+                result = client.hybrid_search(
+                    collection_name=self.collection_name,
+                    reqs=[dense_rqs, bm25_rqs],
+                    ranker=self.ranker,
+                    limit=top_k,
+                    output_fields=["id"],
+                )
+                return result
+            except Exception as e:
+                logger.error(f"Search error: {e!s}")
+                return None
+
+        if not self.index_completed:
+            self._index(corpus)
+            time.sleep(self.sleep_time)
+        query_ids = list(queries.keys())
+        query_texts = [queries[qid] for qid in query_ids]
+        query_embeddings = self.model.encode_queries(query_texts)
+        self.query_embeddings = query_embeddings
+        self.query_texts = query_texts
+        res = _single_search(top_k)
+        return res

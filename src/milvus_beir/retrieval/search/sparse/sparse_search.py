@@ -1,12 +1,15 @@
 import logging
+import random
+import time
 from typing import Dict, Optional
 
 from milvus_model.base import BaseEmbeddingFunction
 from milvus_model.sparse import SpladeEmbeddingFunction
-from pymilvus import DataType, MilvusClient
+from pymilvus import DataType
 from tqdm.autonotebook import tqdm
 
 from milvus_beir.retrieval.search.milvus import MilvusBaseSearch
+from milvus_beir.utils import DEFAULT_CONCURRENCY_LEVELS, measure_search_qps_decorator
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +21,8 @@ def get_default_sparse_model() -> BaseEmbeddingFunction:
 class MilvusSparseSearch(MilvusBaseSearch):
     def __init__(
         self,
-        milvus_client: MilvusClient,
+        uri: str,
+        token: str | None,
         collection_name: str,
         nq: int = 100,
         nb: int = 1000,
@@ -28,13 +32,23 @@ class MilvusSparseSearch(MilvusBaseSearch):
         vector_field: str = "sparse_embedding",
         metric_type: str = "IP",
         search_params: Optional[Dict] = None,
+        sleep_time: int = 5,
     ):
         self.model = model if model is not None else get_default_sparse_model()
         self.vector_field = vector_field
         self.metric_type = metric_type
         self.search_params = search_params
+        self.collection_name = collection_name
+        self.nq = nq
+        self.nb = nb
+        self.initialize = initialize
+        self.clean_up = clean_up
+        self.index_completed = False
+        self.sleep_time = sleep_time
+        self.query_sparse_embeddings = None
         super().__init__(
-            milvus_client=milvus_client,
+            uri=uri,
+            token=token,
             collection_name=collection_name,
             nq=nq,
             nb=nb,
@@ -85,6 +99,7 @@ class MilvusSparseSearch(MilvusBaseSearch):
         *args,
         **kwargs,
     ) -> Dict[str, Dict[str, float]]:
+        """ """
         if self.initialize:
             self._initialize_collection()
 
@@ -118,3 +133,41 @@ class MilvusSparseSearch(MilvusBaseSearch):
                 data[hit["id"]] = hit["distance"]
             result_dict[query_ids[i]] = data
         return result_dict
+
+    def measure_search_qps(
+        self, corpus, queries, top_k=1000, concurrency_levels=None, test_duration=60
+    ):
+        if concurrency_levels is None:
+            concurrency_levels = DEFAULT_CONCURRENCY_LEVELS
+
+        @measure_search_qps_decorator(
+            concurrency_levels, test_duration=test_duration, max_threads=None
+        )
+        def _single_search(top_k):
+            """ """
+            random_id = random.randint(0, len(queries) - 1)
+            embeddings = self.query_sparse_embeddings[random_id : random_id + 1]
+            try:
+                client = self._get_thread_client()
+                result = client.search(
+                    collection_name=self.collection_name,
+                    data=embeddings,
+                    anns_field=self.vector_field,
+                    search_params=self.search_params,
+                    limit=top_k,
+                    output_fields=["id"],
+                )
+                return result
+            except Exception as e:
+                logger.error(f"Search error: {e!s}")
+                return None
+
+        if not self.index_completed:
+            self._index(corpus)
+            time.sleep(self.sleep_time)
+        query_ids = list(queries.keys())
+        query_texts = [queries[qid] for qid in query_ids]
+        sparse_embeddings = self.model.encode_queries(query_texts)
+        self.query_sparse_embeddings = sparse_embeddings
+        res = _single_search(top_k)
+        return res

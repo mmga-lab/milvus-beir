@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
+from pathlib import Path
+
 import click
 from beir import util
 from beir.datasets.data_loader import GenericDataLoader
 from beir.retrieval.evaluation import EvaluateRetrieval
-from pymilvus import MilvusClient
 
 from milvus_beir.retrieval.search.dense.dense_search import MilvusDenseSearch
 from milvus_beir.retrieval.search.hybrid.bm25_hybrid_search import MilvusBM25DenseHybridSearch
@@ -23,29 +24,21 @@ SEARCH_METHODS = {
 }
 
 DATASETS = {
-    "arguana": "arguana",
     "climate-fever": "climate-fever",
-    "cqadupstack": "cqadupstack",
     "dbpedia-entity": "dbpedia-entity",
     "fever": "fever",
     "fiqa": "fiqa",
-    "germanquad": "germanquad",
     "hotpotqa": "hotpotqa",
-    "mmarco": "mmarco",
-    "mrtydi": "mrtydi",
-    "msmarco-v2": "msmarco-v2",
-    "msmarco": "msmarco",
     "nfcorpus": "nfcorpus",
-    "nq-train": "nq-train",
     "nq": "nq",
     "quora": "quora",
     "scidocs": "scidocs",
     "scifact": "scifact",
-    "trec-covid-beir": "trec-covid-beir",
-    "trec-covid-v2": "trec-covid-v2",
-    "trec-covid": "trec-covid",
-    "vihealthqa": "vihealthqa",
     "webis-touche2020": "webis-touche2020",
+    "trec-covid": "trec-covid",
+    "mmarco": "mmarco",
+    "cqadupstack/android": "cqadupstack/android",
+    "cqadupstack/english": "cqadupstack/english",
 }
 
 
@@ -70,44 +63,90 @@ DATASETS = {
 @click.option("--nq", default=100, help="Number of queries to process in parallel")
 @click.option("--nb", default=1000, help="Number of documents to process in parallel")
 @click.option(
-    "--split",
-    default="test",
-    type=click.Choice(["train", "test", "dev"]),
-    help="Dataset split to evaluate on",
+    "--concurrency-levels",
+    "-cl",
+    default="1, 2",
+    help="Concurrency levels for QPS measurement, comma separated",
 )
-def evaluate(dataset, uri, token, search_method, collection_name, nq, nb, split):
+@click.option("--measure-qps", "-mq", is_flag=True, default=True, help="Whether to measure QPS")
+def evaluate(
+    dataset, uri, token, search_method, collection_name, nq, nb, concurrency_levels, measure_qps
+):
     """CLI tool for evaluating different search methods on BEIR datasets with Milvus."""
+    # echo arguments
+    click.echo(f"Dataset: {dataset}")
+    click.echo(f"URI: {uri}")
+    click.echo(f"Token: {token}")
+    click.echo(f"Search Method: {search_method}")
+    click.echo(f"Collection Name: {collection_name}")
+    click.echo(f"Number of Queries: {nq}")
+    click.echo(f"Number of Documents: {nb}")
+    click.echo(f"Concurrency Levels: {concurrency_levels}")
+    click.echo(f"Measure QPS: {measure_qps}\n")
     # Download and load dataset
+    if dataset == "cqadupstack":
+        subsets = [
+            "android",
+            "english",
+            "gaming",
+            "gis",
+            "mathematica",
+            "physics",
+            "programmers",
+            "stats",
+            "unix",
+            "webmasters",
+            "wordpress",
+        ]
+    else:
+        subsets = [None]
+    split = "test"
+    if dataset == "mmarco":
+        split = "dev"  # MS MARCO dataset test split has very few queries
     url = f"https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/{DATASETS[dataset]}.zip"
-    data_path = util.download_and_unzip(url, "/tmp/datasets")
-    corpus, queries, qrels = GenericDataLoader(data_folder=data_path).load(split=split)
+    out_dir = "/tmp/datasets"
+    Path(out_dir).mkdir(parents=True, exist_ok=True)
+    download_data_path = util.download_and_unzip(url, out_dir)
+    for subset in subsets:
+        if subset is not None:
+            data_path = f"{download_data_path}/{subset}"
+        else:
+            data_path = download_data_path
+        corpus, queries, qrels = GenericDataLoader(data_folder=data_path).load(split=split)
+        click.echo(f"\nDataset: {dataset}")
+        click.echo(f"Corpus size: {len(corpus)}")
+        click.echo(f"Number of queries: {len(queries)}")
 
-    click.echo(f"\nDataset: {dataset}")
-    click.echo(f"Corpus size: {len(corpus)}")
-    click.echo(f"Number of queries: {len(queries)}")
+        # Initialize  search model
+        search_class = SEARCH_METHODS[search_method]
+        model = search_class(
+            uri,
+            token,
+            collection_name=collection_name or f"beir_{dataset}_{search_method}",
+            nq=nq,
+            nb=nb,
+        )
 
-    # Initialize Milvus client and search model
-    milvus_client = MilvusClient(uri=uri, token=token)
-    search_class = SEARCH_METHODS[search_method]
-    model = search_class(
-        milvus_client,
-        collection_name=collection_name or f"beir_{dataset}_{search_method}",
-        nq=nq,
-        nb=nb,
-    )
+        # Perform evaluation
+        click.echo(f"\nEvaluating {search_method} search method...")
+        retriever = EvaluateRetrieval(model)
+        results = retriever.retrieve(corpus, queries)
+        ndcg, _map, recall, precision = retriever.evaluate(qrels, results, retriever.k_values)
 
-    # Perform evaluation
-    click.echo(f"\nEvaluating {search_method} search method...")
-    retriever = EvaluateRetrieval(model)
-    results = retriever.retrieve(corpus, queries)
-    ndcg, _map, recall, precision = retriever.evaluate(qrels, results, retriever.k_values)
+        # Print results
+        click.echo("\nEvaluation Results:")
+        click.echo(f"NDCG@k: {ndcg}")
+        click.echo(f"MAP@k: {_map}")
+        click.echo(f"Recall@k: {recall}")
+        click.echo(f"Precision@k: {precision}")
 
-    # Print results
-    click.echo("\nEvaluation Results:")
-    click.echo(f"NDCG@k: {ndcg}")
-    click.echo(f"MAP@k: {_map}")
-    click.echo(f"Recall@k: {recall}")
-    click.echo(f"Precision@k: {precision}")
+        # Measure QPS only if measure_qps is True
+        concurrency_levels = [int(x) for x in concurrency_levels.split(",")]
+        if measure_qps:
+            qps = model.measure_search_qps(
+                corpus, queries, top_k=1000, concurrency_levels=concurrency_levels, test_duration=60
+            )
+            click.echo(f"QPS: {qps}")
 
 
 if __name__ == "__main__":

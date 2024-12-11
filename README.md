@@ -8,10 +8,11 @@ A Python library that integrates Milvus vector database with BEIR (Benchmarking 
   - Dense Vector Search
   - Sparse Vector Search
   - BM25 Search
-  - Hybrid Search (BM25 + Dense， Sparse + Dense)
+  - Hybrid Search (BM25 + Dense, Sparse + Dense)
   - Multi-Match Search
 - Seamless integration with BEIR datasets and evaluation metrics
 - Easy-to-use API for retrieval and evaluation
+- Built-in performance measurement (QPS)
 - Compatible with Milvus 2.5.x
 
 ## Installation
@@ -27,29 +28,45 @@ pip install milvus-beir
 
 ## Quick Start
 
-Here's a simple example of how to use milvus-beir:
+Here's a comprehensive example of how to use milvus-beir for search and evaluation:
 
 ```python
 from beir import util
 from beir.datasets.data_loader import GenericDataLoader
 from beir.retrieval.evaluation import EvaluateRetrieval
-from pymilvus import MilvusClient
 from milvus_beir.retrieval.search.dense.dense_search import MilvusDenseSearch
 
-# Download BEIR dataset
-dataset = "nfcorpus"
+# Download and load BEIR dataset
+dataset = "scifact"
 url = f"https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/{dataset}.zip"
-data_path = util.download_and_unzip(url, "/tmp/datasets")
+data_path = util.download_and_unzip(url, "datasets")
 corpus, queries, qrels = GenericDataLoader(data_folder=data_path).load(split="test")
 
-# Initialize Milvus client and search model
-milvus_client = MilvusClient(uri="http://localhost:19530")
-model = MilvusDenseSearch(milvus_client, collection_name="milvus_beir_demo", nq=100, nb=1000)
+# Initialize Milvus search model
+uri = "http://localhost:19530"
+model = MilvusDenseSearch(
+    uri, 
+    token=None,  # Optional authentication token
+    collection_name="milvus_beir_demo",
+    nq=100,  # Number of queries to process in parallel
+    nb=1000  # Number of documents to process in parallel
+)
 
 # Perform retrieval and evaluation
 retriever = EvaluateRetrieval(model)
 results = retriever.retrieve(corpus, queries)
+
+# Calculate standard metrics
 ndcg, _map, recall, precision = retriever.evaluate(qrels, results, retriever.k_values)
+
+# Measure search performance (QPS)
+qps = model.measure_search_qps(
+    corpus, 
+    queries, 
+    top_k=1000,
+    concurrency_levels=[1, 2],
+    test_duration=60
+)
 ```
 
 ## Search Strategies
@@ -77,6 +94,7 @@ Implements a multi-match search strategy similar to Elasticsearch's multi-match 
 ```python
 from milvus_beir.retrieval.search.multi_match.multi_match_search import MilvusMultiMatchSearch
 ```
+
 ### Hybrid Search
 Combines different search strategies for better results.
 ```python
@@ -86,7 +104,7 @@ from milvus_beir.retrieval.search.hybrid.sparse_hybrid_search import MilvusSpars
 
 ## Command Line Interface
 
-The package includes a command-line interface for easy evaluation of different search methods on BEIR datasets:
+The package includes a powerful command-line interface for evaluating different search methods:
 
 ```bash
 # Basic usage
@@ -96,15 +114,18 @@ milvus-beir --dataset nfcorpus --search-method sparse
 milvus-beir \
     --dataset nfcorpus \
     --uri "http://localhost:19530" \
-    --search-method sparse \
+    --token "your_token" \
+    --search-method bm25 \
     --collection-name "my_collection" \
     --nq 100 \
     --nb 1000 \
-    --split test
+    --concurrency-levels "1,2" \
+    --measure-qps
 ```
 
 Available options:
 - `--dataset, -d`: Dataset name to evaluate on (required)
+  - Supported datasets: climate-fever, dbpedia-entity, fever, fiqa, hotpotqa, nfcorpus, nq, quora, scidocs, scifact, webis-touche2020, trec-covid, mmarco, cqadupstack/android, cqadupstack/english
 - `--uri, -u`: Milvus server URI (default: http://localhost:19530)
 - `--token, -t`: Authentication token for Milvus (optional)
 - `--search-method, -m`: Search method to use (required)
@@ -112,14 +133,15 @@ Available options:
 - `--collection-name, -c`: Milvus collection name (optional)
 - `--nq`: Number of queries to process in parallel (default: 100)
 - `--nb`: Number of documents to process in parallel (default: 1000)
-- `--split`: Dataset split to evaluate on (default: test)
-  - Available splits: train, test, dev
+- `--concurrency-levels`: Comma-separated list of concurrency levels for QPS measurement (default: "1,2")
+- `--measure-qps`: Flag to enable QPS measurement (default: True)
 
 The CLI tool will:
-1. Download the specified BEIR dataset
-2. Load the corpus and queries
-3. Perform retrieval using the selected search method
-4. Calculate and display evaluation metrics (NDCG@k, MAP@k, Recall@k, Precision@k)
+1. Download and load the specified BEIR dataset
+2. Initialize the selected search method
+3. Perform retrieval and evaluation
+4. Calculate and display standard metrics (NDCG@k, MAP@k, Recall@k, Precision@k)
+5. Measure and report search performance in QPS (Queries Per Second)
 
 ## Development
 
