@@ -4,7 +4,6 @@ import click
 from beir import util
 from beir.datasets.data_loader import GenericDataLoader
 from beir.retrieval.evaluation import EvaluateRetrieval
-from pymilvus import MilvusClient
 
 from milvus_beir.retrieval.search.dense.dense_search import MilvusDenseSearch
 from milvus_beir.retrieval.search.hybrid.bm25_hybrid_search import MilvusBM25DenseHybridSearch
@@ -86,11 +85,11 @@ def evaluate(dataset, uri, token, search_method, collection_name, nq, nb, split)
     click.echo(f"Corpus size: {len(corpus)}")
     click.echo(f"Number of queries: {len(queries)}")
 
-    # Initialize Milvus client and search model
-    milvus_client = MilvusClient(uri=uri, token=token)
+    # Initialize  search model
     search_class = SEARCH_METHODS[search_method]
     model = search_class(
-        milvus_client,
+        uri,
+        token,
         collection_name=collection_name or f"beir_{dataset}_{search_method}",
         nq=nq,
         nb=nb,

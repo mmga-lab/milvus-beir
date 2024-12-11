@@ -1,10 +1,13 @@
 import logging
+import random
+import time
 from typing import Dict, Optional
 
-from pymilvus import DataType, Function, FunctionType, MilvusClient
+from pymilvus import DataType, Function, FunctionType
 from tqdm.autonotebook import tqdm
 
 from milvus_beir.retrieval.search.milvus import MilvusBaseSearch
+from milvus_beir.utils import DEFAULT_CONCURRENCY_LEVELS, measure_search_qps_decorator
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +15,8 @@ logger = logging.getLogger(__name__)
 class MilvusBM25Search(MilvusBaseSearch):
     def __init__(
         self,
-        milvus_client: MilvusClient,
+        uri: str,
+        token: str | None,
         collection_name: str,
         nq: int = 100,
         nb: int = 1000,
@@ -25,13 +29,18 @@ class MilvusBM25Search(MilvusBaseSearch):
         search_params: Optional[Dict] = None,
         sleep_time: int = 5,
     ):
+        self.uri = uri
+        self.token = token
         self.analyzer = analyzer
         self.bm25_input_field = bm25_input_field
         self.bm25_output_field = bm25_output_field
         self.metric_type = metric_type
         self.search_params = search_params if search_params is not None else {}
+        self.sleep_time = sleep_time
+        self.query_texts = []
         super().__init__(
-            milvus_client=milvus_client,
+            uri=uri,
+            token=token,
             collection_name=collection_name,
             nq=nq,
             nb=nb,
@@ -105,11 +114,21 @@ class MilvusBM25Search(MilvusBaseSearch):
         *args,
         **kwargs,
     ) -> Dict[str, Dict[str, float]]:
+        """
+        Perform BM25 search with optional QPS measurement.
+
+        Args:
+            corpus: The corpus to search in
+            queries: The queries to use for testing
+            top_k: Number of results to return per query
+        """
+
         if self.initialize:
             self._initialize_collection()
 
         if not self.index_completed:
             self._index(corpus)
+            time.sleep(self.sleep_time)
 
         query_ids = list(queries.keys())
         query_texts = [queries[qid] for qid in query_ids]
@@ -136,3 +155,39 @@ class MilvusBM25Search(MilvusBaseSearch):
                 data[hit["id"]] = hit["distance"]
             result_dict[query_ids[i]] = data
         return result_dict
+
+    def measure_search_qps(
+        self, corpus, queries, top_k=1000, concurrency_levels=None, test_duration=60
+    ):
+        if concurrency_levels is None:
+            concurrency_levels = DEFAULT_CONCURRENCY_LEVELS
+
+        @measure_search_qps_decorator(
+            concurrency_levels, test_duration=test_duration, max_threads=None
+        )
+        def _single_search(top_k):
+            """
+            执行单个搜索操作的方法
+            """
+            query_text = random.choice(self.query_texts)
+            try:
+                client = self._get_thread_client()
+                result = client.search(
+                    collection_name=self.collection_name,
+                    data=[query_text],
+                    anns_field=self.bm25_output_field,
+                    search_params=self.search_params,
+                    limit=top_k,
+                    output_fields=["id"],
+                )
+                return result
+            except Exception as e:
+                logger.error(f"Search error: {e!s}")
+                return None
+
+        if not self.index_completed:
+            self._index(corpus)
+            time.sleep(self.sleep_time)
+        self.query_texts = [queries[qid] for qid in queries.keys()]
+        res = _single_search(queries, top_k)
+        return res
