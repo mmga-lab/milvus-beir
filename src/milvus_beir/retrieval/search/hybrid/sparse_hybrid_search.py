@@ -1,4 +1,6 @@
 import logging
+import random
+import time
 from typing import Any, Dict, Optional
 
 from milvus_model.base import BaseEmbeddingFunction
@@ -7,12 +9,12 @@ from milvus_model.sparse import SpladeEmbeddingFunction
 from pymilvus import (
     AnnSearchRequest,
     DataType,
-    MilvusClient,
     RRFRanker,
 )
 from tqdm.autonotebook import tqdm
 
 from milvus_beir.retrieval.search.milvus import MilvusBaseSearch
+from milvus_beir.utils import DEFAULT_CONCURRENCY_LEVELS, measure_search_qps_decorator
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +34,8 @@ def get_default_ranker():
 class MilvusSparseDenseHybridSearch(MilvusBaseSearch):
     def __init__(
         self,
-        milvus_client: MilvusClient,
+        uri: str,
+        token: str | None,
         collection_name: str,
         nq: int = 100,
         nb: int = 1000,
@@ -47,6 +50,7 @@ class MilvusSparseDenseHybridSearch(MilvusBaseSearch):
         dense_search_params: Optional[Dict] = None,
         sparse_search_params: Optional[Dict] = None,
         ranker: Any = None,
+        sleep_time: int = 5,
     ):
         self.dense_model = dense_model if dense_model is not None else get_default_dense_model()
         self.sparse_model = sparse_model if sparse_model is not None else get_default_sparse_model()
@@ -57,9 +61,13 @@ class MilvusSparseDenseHybridSearch(MilvusBaseSearch):
         self.dense_search_params = dense_search_params if dense_search_params is not None else {}
         self.sparse_search_params = sparse_search_params if sparse_search_params is not None else {}
         self.ranker = ranker if ranker is not None else get_default_ranker()
+        self.sleep_time = sleep_time
+        self.query_dense_embeddings = []
+        self.query_sparse_embeddings = []
 
         super().__init__(
-            milvus_client=milvus_client,
+            uri=uri,
+            token=token,
             collection_name=collection_name,
             nq=nq,
             nb=nb,
@@ -93,7 +101,11 @@ class MilvusSparseDenseHybridSearch(MilvusBaseSearch):
             sparse_embeddings = self.sparse_model(texts)
             ids = corpus_ids[start:end]
             data = [
-                {"id": ids[i], self.dense_vector_field: dense_embeddings[i], self.sparse_vector_field: sparse_embeddings[[i]]}
+                {
+                    "id": ids[i],
+                    self.dense_vector_field: dense_embeddings[i],
+                    self.sparse_vector_field: sparse_embeddings[[i]],
+                }
                 for i in range(len(ids))
             ]
             self.milvus_client.insert(collection_name=self.collection_name, data=data)
@@ -174,3 +186,56 @@ class MilvusSparseDenseHybridSearch(MilvusBaseSearch):
             result_dict[query_ids[i]] = data
 
         return result_dict
+
+    def measure_search_qps(
+        self, corpus, queries, top_k=1000, concurrency_levels=None, test_duration=60
+    ):
+        if concurrency_levels is None:
+            concurrency_levels = DEFAULT_CONCURRENCY_LEVELS
+
+        @measure_search_qps_decorator(
+            concurrency_levels, test_duration=test_duration, max_threads=None
+        )
+        def _single_search(top_k):
+            """ """
+            random_id = random.randint(0, len(queries) - 1)
+            dense_embeddings = [self.query_dense_embeddings[random_id]]
+            sparse_embeddings = [self.query_sparse_embeddings[random_id]]
+            try:
+                client = self._get_thread_client()
+                dense_rqs = AnnSearchRequest(
+                    data=dense_embeddings,
+                    anns_field=self.dense_vector_field,
+                    param=self.dense_search_params,
+                    limit=top_k,
+                )
+                sparse_rqs = AnnSearchRequest(
+                    data=sparse_embeddings,
+                    anns_field=self.sparse_vector_field,
+                    param=self.sparse_search_params,
+                    limit=top_k,
+                )
+
+                result = client.hybrid_search(
+                    collection_name=self.collection_name,
+                    reqs=[dense_rqs, sparse_rqs],
+                    ranker=self.ranker,
+                    limit=top_k,
+                    output_fields=["id"],
+                )
+                return result
+            except Exception as e:
+                logger.error(f"Search error: {e!s}")
+                return None
+
+        if not self.index_completed:
+            self._index(corpus)
+            time.sleep(self.sleep_time)
+        query_ids = list(queries.keys())
+        query_texts = [queries[qid] for qid in query_ids]
+        query_dense_embeddings = self.dense_model.encode_queries(query_texts)
+        query_sparse_embeddings = self.sparse_model.encode_queries(query_texts)
+        self.query_dense_embeddings = query_dense_embeddings
+        self.query_sparse_embeddings = query_sparse_embeddings
+        res = _single_search(top_k)
+        return res

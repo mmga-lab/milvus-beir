@@ -1,10 +1,13 @@
 import logging
+import random
+import time
 from typing import Dict, Optional
 
-from pymilvus import DataType, Function, FunctionType, MilvusClient
+from pymilvus import DataType, Function, FunctionType
 from tqdm.autonotebook import tqdm
 
 from milvus_beir.retrieval.search.milvus import MilvusBaseSearch
+from milvus_beir.utils import DEFAULT_CONCURRENCY_LEVELS, measure_search_qps_decorator
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +15,8 @@ logger = logging.getLogger(__name__)
 class MilvusMultiMatchSearch(MilvusBaseSearch):
     def __init__(
         self,
-        milvus_client: MilvusClient,
+        uri: str,
+        token: str | None,
         collection_name: str,
         nq: int = 100,
         nb: int = 1000,
@@ -35,8 +39,11 @@ class MilvusMultiMatchSearch(MilvusBaseSearch):
         self.metric_type = metric_type
         self.tie_breaker = tie_breaker
         self.search_params = search_params if search_params is not None else {}
+        self.sleep_time = sleep_time
+        self.query_texts = []
         super().__init__(
-            milvus_client=milvus_client,
+            uri=uri,
+            token=token,
             collection_name=collection_name,
             nq=nq,
             nb=nb,
@@ -213,3 +220,45 @@ class MilvusMultiMatchSearch(MilvusBaseSearch):
 
         # Apply score fusion
         return self._apply_fusion(combined_results, query_ids)
+
+    def measure_search_qps(
+        self, corpus, queries, top_k=1000, concurrency_levels=None, test_duration=60
+    ):
+        if concurrency_levels is None:
+            concurrency_levels = DEFAULT_CONCURRENCY_LEVELS
+
+        @measure_search_qps_decorator(
+            concurrency_levels, test_duration=test_duration, max_threads=None
+        )
+        def _single_search(top_k):
+            """ """
+            query_text = random.choice(self.query_texts)
+            try:
+                client = self._get_thread_client()
+                multi_result = []
+                for bm25_output_field in self.bm25_input_output_mapping.values():
+                    result = client.search(
+                        collection_name=self.collection_name,
+                        data=[query_text],
+                        anns_field=bm25_output_field,
+                        search_params=self.search_params,
+                        limit=top_k,
+                        output_fields=["id"],
+                    )
+                    multi_result.append(result)
+
+                # Combine results from all fields
+                combined_results = self._combine_field_results(multi_result, [query_text])
+
+                return combined_results
+
+            except Exception as e:
+                logger.error(f"Search error: {e!s}")
+                return None
+
+        if not self.index_completed:
+            self._index(corpus)
+            time.sleep(self.sleep_time)
+        self.query_texts = [queries[qid] for qid in queries.keys()]
+        res = _single_search(queries, top_k)
+        return res
