@@ -1,32 +1,26 @@
 import logging
-from typing import Dict, List
-from tqdm.autonotebook import tqdm
-from pymilvus import (connections, Collection, FieldSchema, CollectionSchema, MilvusClient,
-                      DataType, utility, FunctionType, Function, AnnSearchRequest, WeightedRanker)
-import numpy as np
-from pandas import DataFrame
+import threading
+
 from beir.retrieval.search import BaseSearch
-from milvus_model.dense import SentenceTransformerEmbeddingFunction
-from milvus_model.sparse import SpladeEmbeddingFunction
-from milvus_model.hybrid import BGEM3EmbeddingFunction
-from milvus_model.base import BaseEmbeddingFunction
+from pymilvus import MilvusClient
 
 logger = logging.getLogger(__name__)
 
-from abc import ABC, abstractmethod
-from typing import Dict
 
 class MilvusBaseSearch(BaseSearch):
-    def __init__(self,
-                 milvus_client: MilvusClient,
-                 collection_name: str,
-                 initialize: bool = True,
-                 clean_up: bool = False,
-                 nb: int = 2000,
-                 nq: int = 100,
-                 ):
-
-        self.milvus_client = milvus_client
+    def __init__(
+        self,
+        uri: str,
+        token: str | None,
+        collection_name: str,
+        initialize: bool = True,
+        clean_up: bool = False,
+        nb: int = 2000,
+        nq: int = 100,
+    ):
+        self.uri = uri
+        self.token = token
+        self.milvus_client = MilvusClient(uri=uri, token=token)
         self.collection_name = collection_name
         self.initialize = initialize
         self.clean_up = clean_up
@@ -34,7 +28,10 @@ class MilvusBaseSearch(BaseSearch):
         self.nb = nb
         self.results = {}
         self.index_completed = False
+        self._thread_local = threading.local()
 
-
-
-
+    def _get_thread_client(self):
+        """ """
+        if not hasattr(self._thread_local, "client"):
+            self._thread_local.client = MilvusClient(uri=self.uri, token=self.token)
+        return self._thread_local.client
