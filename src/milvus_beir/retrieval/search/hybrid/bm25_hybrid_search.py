@@ -3,6 +3,7 @@ import random
 import time
 from typing import Any, Dict, Optional
 
+import torch
 from milvus_model.base import BaseEmbeddingFunction
 from milvus_model.dense import SentenceTransformerEmbeddingFunction
 from pymilvus import (
@@ -21,7 +22,8 @@ logger = logging.getLogger(__name__)
 
 
 def get_default_model() -> BaseEmbeddingFunction:
-    return SentenceTransformerEmbeddingFunction()
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    return SentenceTransformerEmbeddingFunction(device=device)
 
 
 def get_default_ranker():

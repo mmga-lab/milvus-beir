@@ -1,6 +1,7 @@
 from beir import util
 from beir.datasets.data_loader import GenericDataLoader
 from beir.retrieval.evaluation import EvaluateRetrieval
+from ranx import Qrels, Run, compare
 
 from milvus_beir.retrieval.search.dense.dense_search import MilvusDenseSearch
 from milvus_beir.retrieval.search.hybrid.bm25_hybrid_search import MilvusBM25DenseHybridSearch
@@ -29,6 +30,8 @@ models = [
     MilvusBM25Search(uri, token, collection_name="milvus_beir_demo", nq=100, nb=1000),
 ]
 
+runs = []
+
 for model in models:
     retriever = EvaluateRetrieval(model)
     results = retriever.retrieve(corpus, queries)
@@ -41,3 +44,13 @@ for model in models:
         corpus, queries, top_k=1000, concurrency_levels=[1, 2], test_duration=60
     )
     print("QPS:", qps)
+    runs.append(Run(results, name=model.__class__.__name__))
+
+qrels = Qrels(qrels)
+
+report = compare(
+    qrels=qrels,
+    runs=runs,
+    metrics=["ndcg@10", "map@10", "recall@10", "precision@10"],
+)
+print(report)

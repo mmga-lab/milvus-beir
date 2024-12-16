@@ -3,6 +3,7 @@ import random
 import time
 from typing import Any, Dict, Optional
 
+import torch
 from milvus_model.base import BaseEmbeddingFunction
 from milvus_model.dense import SentenceTransformerEmbeddingFunction
 from milvus_model.sparse import SpladeEmbeddingFunction
@@ -20,7 +21,8 @@ logger = logging.getLogger(__name__)
 
 
 def get_default_dense_model() -> BaseEmbeddingFunction:
-    return SentenceTransformerEmbeddingFunction()
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    return SentenceTransformerEmbeddingFunction(device=device)
 
 
 def get_default_sparse_model() -> BaseEmbeddingFunction:

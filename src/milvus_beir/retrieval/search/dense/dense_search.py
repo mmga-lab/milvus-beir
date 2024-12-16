@@ -3,6 +3,7 @@ import random
 import time
 from typing import Dict, Optional
 
+import torch
 from milvus_model.base import BaseEmbeddingFunction
 from milvus_model.dense import SentenceTransformerEmbeddingFunction
 from pymilvus import DataType
@@ -15,7 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 def get_default_model() -> BaseEmbeddingFunction:
-    return SentenceTransformerEmbeddingFunction()
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    return SentenceTransformerEmbeddingFunction(device=device)
 
 
 class MilvusDenseSearch(MilvusBaseSearch):
