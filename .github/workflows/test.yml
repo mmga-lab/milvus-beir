@@ -25,12 +25,14 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-        cache: 'pip'
+
+    - name: Install UV
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
 
     - name: Install dependencies
-      run: |
-        curl -sSL https://pdm-project.org/install-pdm.py | python3 -
-        pdm install -dG:all
+      run: uv sync --extra dev
 
     - name: Start Milvus
       run: |
@@ -39,8 +41,7 @@ jobs:
         docker compose ps -a
 
     - name: Run Test
-      run: |
-         pdm run pytest -v tests
+      run: uv run pytest -v tests
 
     - name: Stop Milvus
       if: always()

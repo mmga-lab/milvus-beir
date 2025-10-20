@@ -186,15 +186,29 @@ The CLI tool will:
 git clone https://github.com/your-org/milvus-beir.git
 cd milvus-beir
 
-# Install dependencies using PDM
-pdm install
+# Install dependencies using UV
+uv sync --extra dev
 pre-commit install
 ```
 
 ### Running Tests
 
 ```bash
-pdm run pytest tests/
+# Run all tests
+uv run pytest tests/
+
+# Run tests with custom Milvus connection
+uv run pytest tests/ --milvus-uri="http://localhost:19530" --milvus-token="root:Milvus"
+```
+
+### Linting and Formatting
+
+```bash
+# Run ruff linter
+uv run ruff check .
+
+# Run ruff formatter
+uv run ruff format .
 ```
 
 ## License
