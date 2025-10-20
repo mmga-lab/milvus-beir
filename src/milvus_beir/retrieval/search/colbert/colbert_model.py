@@ -66,7 +66,7 @@ class ColBERTEmbeddingFunction:
         return self._dim
 
     def encode(
-        self, texts: List[str], batch_size: int = None, show_progress_bar: bool = True
+        self, texts: List[str], batch_size: int|None = None, show_progress_bar: bool = True
     ) -> List[np.ndarray]:
         """
         Encode documents into multi-vector embeddings.
@@ -95,7 +95,7 @@ class ColBERTEmbeddingFunction:
         return embeddings
 
     def encode_queries(
-        self, queries: List[str], batch_size: int = None, show_progress_bar: bool = True
+        self, queries: List[str], batch_size: int|None = None, show_progress_bar: bool = True
     ) -> List[np.ndarray]:
         """
         Encode queries into multi-vector embeddings.

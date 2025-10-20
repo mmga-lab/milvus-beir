@@ -3,7 +3,6 @@ import random
 import time
 from typing import Dict, Optional
 
-import numpy as np
 from pymilvus import DataType
 from pymilvus.client.embedding_list import EmbeddingList
 from tqdm.autonotebook import tqdm
