@@ -7,6 +7,7 @@ A Python library that integrates Milvus vector database with BEIR (Benchmarking 
 - Multiple search strategies:
   - Dense Vector Search
   - Sparse Vector Search
+  - ColBERT Multi-Vector Search (with MAX_SIM scoring)
   - BM25 Search
   - Hybrid Search (BM25 + Dense, Sparse + Dense)
   - Multi-Match Search
@@ -95,6 +96,36 @@ Implements a multi-match search strategy similar to Elasticsearch's multi-match 
 from milvus_beir.retrieval.search.multi_match.multi_match_search import MilvusMultiMatchSearch
 ```
 
+### ColBERT Multi-Vector Search
+Advanced multi-vector retrieval using ColBERT model with MAX_SIM scoring.
+```python
+from milvus_beir.retrieval.search.colbert.colbert_search import MilvusColBERTSearch
+
+# Using default model (mixedbread-ai/mxbai-edge-colbert-v0-17m)
+model = MilvusColBERTSearch(
+    uri="http://localhost:19530",
+    token=None,
+    collection_name="colbert_demo",
+    nq=100,
+    nb=1000
+)
+
+# Using custom ColBERT model
+from milvus_beir.retrieval.search.colbert.colbert_model import ColBERTEmbeddingFunction
+
+custom_model = ColBERTEmbeddingFunction(
+    model_name_or_path="jinaai/jina-colbert-v1-en",
+    batch_size=64
+)
+
+model = MilvusColBERTSearch(
+    uri="http://localhost:19530",
+    token=None,
+    collection_name="colbert_demo",
+    model=custom_model
+)
+```
+
 ### Hybrid Search
 Combines different search strategies for better results.
 ```python
@@ -109,6 +140,9 @@ The package includes a powerful command-line interface for evaluating different 
 ```bash
 # Basic usage
 milvus-beir --dataset nfcorpus --search-method sparse
+
+# Using ColBERT multi-vector search
+milvus-beir --dataset nfcorpus --search-method colbert
 
 # Full options
 milvus-beir \
@@ -129,7 +163,7 @@ Available options:
 - `--uri, -u`: Milvus server URI (default: http://localhost:19530)
 - `--token, -t`: Authentication token for Milvus (optional)
 - `--search-method, -m`: Search method to use (required)
-  - Available methods: dense, sparse, sparse_hybrid, bm25_hybrid, multi_match, bm25
+  - Available methods: dense, sparse, colbert, sparse_hybrid, bm25_hybrid, multi_match, bm25
 - `--collection-name, -c`: Milvus collection name (optional)
 - `--nq`: Number of queries to process in parallel (default: 100)
 - `--nb`: Number of documents to process in parallel (default: 1000)

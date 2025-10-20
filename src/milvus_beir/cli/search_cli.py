@@ -7,6 +7,7 @@ from beir import util
 from beir.datasets.data_loader import GenericDataLoader
 from beir.retrieval.evaluation import EvaluateRetrieval
 
+from milvus_beir.retrieval.search.colbert.colbert_search import MilvusColBERTSearch
 from milvus_beir.retrieval.search.dense.dense_search import MilvusDenseSearch
 from milvus_beir.retrieval.search.hybrid.bm25_hybrid_search import MilvusBM25DenseHybridSearch
 from milvus_beir.retrieval.search.hybrid.sparse_hybrid_search import MilvusSparseDenseHybridSearch
@@ -21,6 +22,7 @@ SEARCH_METHODS = {
     "bm25_hybrid": MilvusBM25DenseHybridSearch,
     "multi_match": MilvusMultiMatchSearch,
     "bm25": MilvusBM25Search,
+    "colbert": MilvusColBERTSearch,
 }
 
 DATASETS = {
